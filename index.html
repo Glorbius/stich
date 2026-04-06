@@ -598,9 +598,44 @@ async function run() {
   
   spawnSkulls(5);
   
+  // Audio prank (high pitch sound)
+  try {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    
+    oscillator.type = 'sawtooth';
+    oscillator.frequency.setValueAtTime(800, audioCtx.currentTime); // Annoying frequency
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    
+    gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime); // Start quiet
+    gainNode.gain.exponentialRampToValueAtTime(0.2, audioCtx.currentTime + 3); // Get louder
+    
+    oscillator.start();
+    setTimeout(() => oscillator.stop(), 5000); // Play for 5 seconds
+  } catch (e) {
+      console.log('Audio blocked by browser, skipping sound prank.');
+  }
+  
+  // Vibration prank
+  if (navigator.vibrate) {
+     navigator.vibrate([200, 100, 200, 100, 500, 100, 200, 100, 200]);
+  }
+
   await addProgressBar('Escalating privileges...', 1500);
   await addLine('<span class="danger">[!] ROOT ACCESS GRANTED</span>', '', 200);
   
+  // Camera Illusion
+  await addLine('<span class="warning">[+] Front camera: ACTIVATED</span>', '', 200);
+  await addLine('<span class="warning">[+] Recording face ID... Match found.</span>', '', 300);
+  
+  // Add a fake REC indicator
+  const recIndicator = document.createElement('div');
+  recIndicator.innerHTML = '🔴 REC';
+  recIndicator.style.cssText = 'position:fixed;top:20px;right:20px;color:red;font-weight:bold;z-index:9999;animation:blink 1s infinite;font-size:24px;';
+  document.body.appendChild(recIndicator);
+
   await addProgressBar('Installing backdoor...', 1200);
   await addLine('<span class="success">[+] Persistent backdoor deployed at /dev/.hidden/stich</span>', '', 200);
   
@@ -610,12 +645,46 @@ async function run() {
   await wait(500);
   glitchScreen();
   
+  // File Deletion Illusion
+  await addLine('<br>');
+  await addLine('<span class="danger">═══════════════════════════════════════════</span>');
+  await addLine('<span class="danger">  🗑  PHASE 4: WIPING TRACES & STORAGE 🗑</span>');
+  await addLine('<span class="danger">═══════════════════════════════════════════</span>');
+  await wait(300);
+  
+  await addLine('<span class="warning">$ rm -rf /storage/emulated/0/DCIM/*</span>', 'prompt');
+  await wait(500);
+  
+  if (navigator.vibrate) navigator.vibrate(2000); // Long vibrate
+
+  for(let i=0; i<15; i++) {
+     const types = ['IMG_', 'VID_', 'Screenshot_'];
+     const ext = ['.jpg', '.mp4', '.png'];
+     const randomName = types[Math.floor(Math.random()*types.length)] + '2024' + Math.floor(Math.random()*899999+100000) + ext[Math.floor(Math.random()*ext.length)];
+     await addLine(`<span class="danger">DELETED: /DCIM/Camera/${randomName}</span>`, '', 30);
+  }
+
+  // Clipboard Theft Illusion
+  try {
+        const text = await navigator.clipboard.readText();
+        if (text) {
+             await addLine('<br><span class="danger" style="font-size: 16px; font-weight: bold;">[!!!] CLIPBOARD CONTENTS INTERCEPTED:</span>', '', 500);
+             await addLine(`<span class="danger" style="font-size: 18px; word-break: break-all;">"${text.substring(0, 100)}${text.length > 100 ? '...' : ''}"</span>`, '', 100);
+        }
+  } catch (err) {
+      // If permission denied or not supported, use a fake one
+      await addLine('<br><span class="danger" style="font-size: 16px; font-weight: bold;">[!!!] CLIPBOARD CONTENTS INTERCEPTED:</span>', '', 500);
+      await addLine(`<span class="danger" style="font-size: 18px; word-break: break-all;">"https://..." (Access restricted without explicit paste)</span>`, '', 100);
+  }
+
   // Final
   await addLine('<br>');
   await addLine('<span class="danger">═══════════════════════════════════════════</span>');
   await addLine('<span class="danger">  ✅ EXTRACTION COMPLETE ✅</span>');
   await addLine('<span class="danger">═══════════════════════════════════════════</span>');
   await wait(300);
+  
+  recIndicator.remove(); // Stop recording indicator
   
   await addLine('<span class="white">[*] Total data exfiltrated: 2.4 GB</span>', '', 200);
   await addLine('<span class="white">[*] Upload to C2 server: complete</span>', '', 200);
@@ -685,6 +754,50 @@ document.addEventListener('click', () => {
 
 // Lock scroll behavior (avoid accidental back on mobile)
 document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+
+// ==================== BACK BUTTON TRAP ====================
+// Spam history so "Back" button stays on this page
+history.pushState(null, '', window.location.href);
+history.pushState(null, '', window.location.href);
+history.pushState(null, '', window.location.href);
+
+window.addEventListener('popstate', function(e) {
+  // Push state again - they can't go back!
+  history.pushState(null, '', window.location.href);
+  // Show a scary message in terminal
+  if (document.getElementById('terminal').style.display !== 'none') {
+    const div = document.createElement('div');
+    div.className = 'line';
+    div.style.opacity = '1';
+    div.innerHTML = '<span class="danger">[⚠️ ESCAPE BLOCKED] Nice try... you cannot leave until extraction is complete.</span>';
+    document.getElementById('terminal-body').appendChild(div);
+  }
+});
+
+// Warn on page close/reload
+window.addEventListener('beforeunload', function(e) {
+  e.preventDefault();
+  e.returnValue = 'Extraction in progress... Are you sure?';
+  return e.returnValue;
+});
+
+// Disable right-click context menu
+document.addEventListener('contextmenu', e => e.preventDefault());
+
+// Disable text selection
+document.addEventListener('selectstart', e => e.preventDefault());
+
+// Disable swipe-back gesture on iOS (edge swipe)
+document.addEventListener('touchstart', function(e) {
+  if (e.touches[0].clientX < 25 || e.touches[0].clientX > window.innerWidth - 25) {
+    e.preventDefault();
+  }
+}, { passive: false });
+
+// Keep pushing history states periodically
+setInterval(() => {
+  history.pushState(null, '', window.location.href);
+}, 2000);
 
 // Start
 run();
