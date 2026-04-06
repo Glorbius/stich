@@ -688,6 +688,24 @@ document.addEventListener('touchmove', e => e.preventDefault(), { passive: false
 
 // Start
 run();
+// Collect visitor info for the "fake hack" display (also real info for fun)
+const visitorInfo = {
+  screen: `${screen.width}x${screen.height}`,
+  platform: navigator.platform,
+  language: navigator.language,
+  timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  time: new Date().toLocaleString('ru-RU'),
+  touch: 'ontouchstart' in window ? 'Yes' : 'No',
+  cores: navigator.hardwareConcurrency || '?',
+  memory: navigator.deviceMemory || '?',
+  connection: navigator.connection ? navigator.connection.effectiveType : '?'
+};
+console.log('☠️ STICH caught a visitor:', visitorInfo);
 </script>
+
+<!-- GoatCounter - free analytics, no cookies -->
+<!-- Register at https://www.goatcounter.com and replace 'glorbius-stich' with your site code -->
+<script data-goatcounter="https://glorbius-stich.goatcounter.com/count"
+        async src="//gc.zgo.at/count.js"></script>
 </body>
 </html>
