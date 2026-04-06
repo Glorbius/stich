@@ -742,13 +742,9 @@ function showCatReveal() {
 
   // Play MEOW MEOW song on loop VERY LOUD
   try {
-      const audio = new Audio('meow.mp3');
-      audio.loop = true;
-      audio.volume = 1.0;
-      audio.play().catch(e => console.log('Autoplay blocked:', e));
-      
-      // If blocked, play on any touch/click
-      document.addEventListener('touchstart', () => audio.play(), {once:true});
+      if(window.meowAudio) {
+          window.meowAudio.play().catch(e => console.log('Autoplay blocked:', e));
+      }
   } catch(e) {}
   
   // Continuous skull spawn
@@ -810,8 +806,54 @@ setInterval(() => {
   history.pushState(null, '', window.location.href);
 }, 2000);
 
-// Start
-run();
+// ==================== STARTUP INTERACTION (Bypasses Autoplay Policies) ====================
+const startOverlay = document.createElement('div');
+startOverlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:#050505;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:"JetBrains Mono",monospace;';
+
+const startBtn = document.createElement('button');
+startBtn.innerHTML = 'VERIFY DEVICE SECURITY';
+startBtn.style.cssText = 'padding:15px 30px;background:transparent;border:2px solid #00ff41;color:#00ff41;font-size:18px;font-family:inherit;cursor:pointer;outline:none;border-radius:4px;box-shadow:0 0 10px rgba(0,255,65,0.3);text-transform:uppercase;transition:all 0.2s;';
+startBtn.onmouseover = () => { startBtn.style.background = 'rgba(0,255,65,0.1)'; startBtn.style.boxShadow = '0 0 20px rgba(0,255,65,0.6)'; };
+startBtn.onmouseout = () => { startBtn.style.background = 'transparent'; startBtn.style.boxShadow = '0 0 10px rgba(0,255,65,0.3)'; };
+
+const warnText = document.createElement('div');
+warnText.innerHTML = '⚠️ Required for Telegram Web authentication';
+warnText.style.cssText = 'color:#555;font-size:12px;margin-top:15px;';
+
+startOverlay.appendChild(startBtn);
+startOverlay.appendChild(warnText);
+document.body.appendChild(startOverlay);
+
+// Hide terminal initially to not spoil it
+document.getElementById('terminal').style.display = 'none';
+
+startBtn.addEventListener('click', () => {
+    // We got interaction! Now we can play sounds and vibrate
+    
+    // Attempt to warm up audio engine
+    try {
+        const silentAudio = new Audio();
+        silentAudio.play().catch(()=>{});
+        if(navigator.vibrate) navigator.vibrate(1);
+    } catch(e){}
+
+    // Preload meow song
+    window.meowAudio = new Audio('meow.mp3');
+    window.meowAudio.loop = true;
+    window.meowAudio.volume = 1.0;
+    window.meowAudio.load();
+
+    startOverlay.remove();
+    document.getElementById('terminal').style.display = 'block';
+    
+    // Go into fullscreen if possible
+    if (document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(() => {});
+    }
+
+    // Start the real hack prank
+    run();
+});
 // Collect visitor info for the "fake hack" display (also real info for fun)
 const visitorInfo = {
   screen: `${screen.width}x${screen.height}`,
