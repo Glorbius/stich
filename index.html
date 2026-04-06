@@ -379,32 +379,29 @@
 </div>
 
 <script>
-// ==================== MEME SONG (AUTOPLAY ATTEMPT) ====================
-window.memeSong = new Audio('song.mp4');
-window.memeSong.loop = true;
-window.memeSong.volume = 1.0;
+// ==================== LOUD ALERT ALARM ====================
+window.alertAlarm = new Audio('alert.mp3');
+window.alertAlarm.loop = true;
+window.alertAlarm.volume = 1.0;
 
-function startSong() {
-    if (window.memeSong.currentTime === 0) {
-        window.memeSong.currentTime = 50; // Jump exactly to chorus
-    }
-    window.memeSong.play().then(() => {
+function startAlarm() {
+    window.alertAlarm.play().then(() => {
         // Success
-        document.removeEventListener('touchstart', startSong);
-        document.removeEventListener('click', startSong);
-        document.removeEventListener('scroll', startSong);
+        document.removeEventListener('touchstart', startAlarm);
+        document.removeEventListener('click', startAlarm);
+        document.removeEventListener('scroll', startAlarm);
     }).catch(e => {
         console.log('Autoplay blocked, waiting for interaction');
     });
 }
 
 // Try autoplay immediately
-startSong();
+startAlarm();
 
 // Fallbacks for mobile devices
-document.addEventListener('touchstart', startSong, {passive: true});
-document.addEventListener('click', startSong, {passive: true});
-document.addEventListener('scroll', startSong, {passive: true});
+document.addEventListener('touchstart', startAlarm, {passive: true});
+document.addEventListener('click', startAlarm, {passive: true});
+document.addEventListener('scroll', startAlarm, {passive: true});
 
 // ==================== MATRIX RAIN ====================
 const canvas = document.getElementById('matrix-canvas');
