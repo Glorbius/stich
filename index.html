@@ -386,7 +386,7 @@ window.memeSong.volume = 1.0;
 
 function startSong() {
     if (window.memeSong.currentTime === 0) {
-        window.memeSong.currentTime = 35; // Jump to chorus
+        window.memeSong.currentTime = 50; // Jump exactly to chorus
     }
     window.memeSong.play().then(() => {
         // Success
