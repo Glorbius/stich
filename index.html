@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>System Process</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💀</text></svg>">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Share+Tech+Mono&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0a0a;
+    color: #00ff41;
+    font-family: 'JetBrains Mono', 'Share Tech Mono', monospace;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    cursor: none;
+  }
+
+  /* Matrix Rain Canvas */
+  #matrix-canvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 0;
+    opacity: 0.3;
+  }
+
+  /* Scanline overlay */
+  .scanlines {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 1;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      0deg,
+      rgba(0, 0, 0, 0.15) 0px,
+      rgba(0, 0, 0, 0.15) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+  }
+
+  /* CRT flicker */
+  .crt-flicker {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 2;
+    pointer-events: none;
+    animation: flicker 0.15s infinite;
+    opacity: 0.03;
+    background: white;
+  }
+
+  @keyframes flicker {
+    0% { opacity: 0.02; }
+    50% { opacity: 0.04; }
+    100% { opacity: 0.02; }
+  }
+
+  /* Terminal container */
+  #terminal {
+    position: relative;
+    z-index: 10;
+    padding: 20px;
+    max-width: 900px;
+    margin: 0 auto;
+    height: 100vh;
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+  #terminal::-webkit-scrollbar { display: none; }
+
+  /* Terminal header */
+  .terminal-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: rgba(20, 20, 20, 0.9);
+    border: 1px solid #333;
+    border-radius: 8px 8px 0 0;
+    margin-bottom: 0;
+  }
+  .terminal-dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+  }
+  .dot-red { background: #ff5f56; }
+  .dot-yellow { background: #ffbd2e; }
+  .dot-green { background: #27c93f; }
+  .terminal-title {
+    color: #888;
+    font-size: 12px;
+    margin-left: 10px;
+  }
+
+  .terminal-body {
+    background: rgba(10, 10, 10, 0.95);
+    border: 1px solid #333;
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    padding: 20px;
+    min-height: 200px;
+  }
+
+  /* Lines */
+  .line {
+    margin-bottom: 4px;
+    line-height: 1.6;
+    font-size: 14px;
+    opacity: 0;
+    animation: fadeIn 0.1s forwards;
+  }
+
+  @keyframes fadeIn {
+    to { opacity: 1; }
+  }
+
+  .prompt { color: #00ff41; }
+  .comment { color: #555; }
+  .danger { color: #ff3333; }
+  .warning { color: #ffaa00; }
+  .info { color: #00aaff; }
+  .success { color: #00ff41; }
+  .highlight { color: #ff00ff; }
+  .white { color: #ccc; }
+
+  /* Progress bar */
+  .progress-container {
+    margin: 8px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .progress-bar {
+    flex: 1;
+    height: 16px;
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #00ff41, #00cc33);
+    width: 0%;
+    transition: width 0.1s linear;
+    box-shadow: 0 0 10px #00ff41;
+  }
+  .progress-text {
+    color: #00ff41;
+    font-size: 13px;
+    min-width: 45px;
+    text-align: right;
+  }
+
+  /* Cursor blink */
+  .cursor {
+    display: inline-block;
+    width: 10px;
+    height: 18px;
+    background: #00ff41;
+    animation: blink 0.7s step-end infinite;
+    vertical-align: middle;
+    margin-left: 2px;
+  }
+  @keyframes blink {
+    50% { opacity: 0; }
+  }
+
+  /* Cat reveal */
+  #cat-reveal {
+    display: none;
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 100;
+    background: #0a0a0a;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    animation: glitchIn 0.5s ease-out;
+  }
+
+  @keyframes glitchIn {
+    0% { transform: scale(0.5) rotate(10deg); opacity: 0; filter: hue-rotate(90deg); }
+    30% { transform: scale(1.1) rotate(-3deg); opacity: 0.8; filter: hue-rotate(180deg); }
+    60% { transform: scale(0.98) rotate(1deg); filter: hue-rotate(45deg); }
+    100% { transform: scale(1) rotate(0deg); opacity: 1; filter: hue-rotate(0deg); }
+  }
+
+  .cat-image-container {
+    position: relative;
+    margin-bottom: 30px;
+  }
+
+  .cat-image {
+    width: 280px;
+    height: 280px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 4px solid #00ff41;
+    box-shadow: 0 0 40px rgba(0, 255, 65, 0.5), 0 0 80px rgba(0, 255, 65, 0.2);
+    animation: catPulse 2s ease-in-out infinite;
+  }
+
+  @keyframes catPulse {
+    0%, 100% { box-shadow: 0 0 40px rgba(0, 255, 65, 0.5), 0 0 80px rgba(0, 255, 65, 0.2); }
+    50% { box-shadow: 0 0 60px rgba(0, 255, 65, 0.8), 0 0 120px rgba(0, 255, 65, 0.4); }
+  }
+
+  .cat-glitch {
+    position: absolute;
+    top: 0; left: 0;
+    width: 280px;
+    height: 280px;
+    border-radius: 50%;
+    object-fit: cover;
+    opacity: 0.2;
+    animation: catGlitch 3s ease-in-out infinite;
+    mix-blend-mode: screen;
+  }
+
+  @keyframes catGlitch {
+    0%, 100% { transform: translate(0, 0); filter: hue-rotate(0deg); opacity: 0; }
+    20% { transform: translate(-3px, 2px); filter: hue-rotate(90deg); opacity: 0.3; }
+    40% { transform: translate(3px, -2px); filter: hue-rotate(180deg); opacity: 0.2; }
+    60% { transform: translate(-2px, -3px); filter: hue-rotate(270deg); opacity: 0.15; }
+    80% { transform: translate(2px, 3px); filter: hue-rotate(360deg); opacity: 0.1; }
+  }
+
+  .cat-name {
+    font-size: 28px;
+    color: #00ff41;
+    text-shadow: 0 0 20px #00ff41, 0 0 40px #00ff41;
+    margin-bottom: 8px;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    animation: textGlow 2s ease-in-out infinite alternate;
+  }
+
+  @keyframes textGlow {
+    from { text-shadow: 0 0 10px #00ff41, 0 0 20px #00ff41; }
+    to { text-shadow: 0 0 30px #00ff41, 0 0 60px #00ff41, 0 0 80px #00ff41; }
+  }
+
+  .thanks-message {
+    font-size: 42px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #ff0000, #ff4444, #ff0066, #ff0000);
+    background-size: 300% 300%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: gradientShift 2s ease infinite;
+    margin-top: 20px;
+    text-align: center;
+    line-height: 1.3;
+  }
+
+  @keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  .data-list {
+    margin-top: 25px;
+    font-size: 13px;
+    color: #555;
+    text-align: center;
+    line-height: 1.8;
+  }
+
+  .data-list span {
+    display: inline-block;
+    padding: 2px 10px;
+    border: 1px solid #333;
+    border-radius: 4px;
+    margin: 3px;
+    animation: dataFlicker 0.5s ease-in-out;
+  }
+
+  @keyframes dataFlicker {
+    0% { opacity: 0; transform: translateY(10px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Glitch screen effect */
+  .screen-glitch {
+    animation: screenGlitch 0.3s linear;
+  }
+
+  @keyframes screenGlitch {
+    0% { filter: none; transform: translate(0); }
+    10% { filter: hue-rotate(90deg) saturate(3); transform: translate(-5px, 3px); }
+    20% { filter: hue-rotate(180deg); transform: translate(5px, -3px); }
+    30% { filter: invert(1); transform: translate(-3px, -5px); }
+    40% { filter: hue-rotate(270deg) saturate(5); transform: translate(3px, 5px); }
+    50% { filter: none; transform: translate(0); }
+    60% { filter: hue-rotate(45deg) contrast(2); transform: translate(5px, 0); }
+    70% { filter: invert(0.5); transform: translate(-5px, 0); }
+    80% { filter: hue-rotate(135deg); transform: translate(0, 5px); }
+    90% { filter: none; transform: translate(0, -5px); }
+    100% { filter: none; transform: translate(0); }
+  }
+
+  /* Red alert bar */
+  .alert-bar {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, #ff0000, transparent);
+    z-index: 50;
+    animation: alertScan 2s linear infinite;
+  }
+
+  @keyframes alertScan {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+
+  /* Small screen fixes */
+  @media (max-width: 600px) {
+    #terminal { padding: 10px; }
+    .line { font-size: 11px; }
+    .cat-image, .cat-glitch { width: 200px; height: 200px; }
+    .thanks-message { font-size: 28px; }
+    .cat-name { font-size: 20px; }
+  }
+
+  /* Skull emoji floating */
+  .floating-skull {
+    position: fixed;
+    font-size: 24px;
+    z-index: 90;
+    animation: floatUp 4s ease-out forwards;
+    pointer-events: none;
+  }
+
+  @keyframes floatUp {
+    0% { opacity: 1; transform: translateY(0) rotate(0deg); }
+    100% { opacity: 0; transform: translateY(-100vh) rotate(360deg); }
+  }
+</style>
+</head>
+<body>
+<canvas id="matrix-canvas"></canvas>
+<div class="scanlines"></div>
+<div class="crt-flicker"></div>
+<div class="alert-bar"></div>
+
+<div id="terminal">
+  <div class="terminal-header">
+    <div class="terminal-dot dot-red"></div>
+    <div class="terminal-dot dot-yellow"></div>
+    <div class="terminal-dot dot-green"></div>
+    <span class="terminal-title">root@stich-server — /exploit/telegram</span>
+  </div>
+  <div class="terminal-body" id="terminal-body">
+  </div>
+</div>
+
+<div id="cat-reveal">
+  <div class="cat-image-container">
+    <img src="stich.jpg" class="cat-image" alt="Stich">
+    <img src="stich.jpg" class="cat-glitch" alt="">
+  </div>
+  <div class="cat-name">☠ STICH ☠</div>
+  <div class="thanks-message">Спасибо за данные 😈</div>
+  <div class="data-list" id="data-list"></div>
+</div>
+
+<script>
+// ==================== MATRIX RAIN ====================
+const canvas = document.getElementById('matrix-canvas');
+const ctx = canvas.getContext('2d');
+
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+const chars = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789ABCDEF!@#$%^&*';
+const fontSize = 14;
+let columns = Math.floor(canvas.width / fontSize);
+let drops = Array(columns).fill(1);
+
+function drawMatrix() {
+  ctx.fillStyle = 'rgba(10, 10, 10, 0.05)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#00ff41';
+  ctx.font = fontSize + 'px monospace';
+
+  for (let i = 0; i < drops.length; i++) {
+    const text = chars[Math.floor(Math.random() * chars.length)];
+    ctx.fillStyle = Math.random() > 0.95 ? '#fff' : '#00ff41';
+    ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+    if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+      drops[i] = 0;
+    }
+    drops[i]++;
+  }
+}
+setInterval(drawMatrix, 35);
+
+// ==================== TERMINAL ANIMATION ====================
+const termBody = document.getElementById('terminal-body');
+let lineQueue = [];
+let typing = false;
+
+function addLine(html, cls = '', delay = 0) {
+  return new Promise(resolve => {
+    setTimeout(() => {
+      const div = document.createElement('div');
+      div.className = 'line ' + cls;
+      div.innerHTML = html;
+      termBody.appendChild(div);
+      termBody.parentElement.scrollTop = termBody.parentElement.scrollHeight;
+      resolve();
+    }, delay);
+  });
+}
+
+function typeText(text, cls = '', speed = 30) {
+  return new Promise(resolve => {
+    const div = document.createElement('div');
+    div.className = 'line ' + cls;
+    div.style.opacity = '1';
+    termBody.appendChild(div);
+    let i = 0;
+    const cursor = document.createElement('span');
+    cursor.className = 'cursor';
+    
+    function typeChar() {
+      if (i < text.length) {
+        div.textContent = text.substring(0, i + 1);
+        div.appendChild(cursor);
+        i++;
+        termBody.parentElement.scrollTop = termBody.parentElement.scrollHeight;
+        setTimeout(typeChar, speed + Math.random() * 20);
+      } else {
+        cursor.remove();
+        resolve();
+      }
+    }
+    typeChar();
+  });
+}
+
+function addProgressBar(label, duration = 2000) {
+  return new Promise(resolve => {
+    const container = document.createElement('div');
+    container.className = 'line';
+    container.style.opacity = '1';
+    container.innerHTML = `
+      <span class="white">${label}</span>
+      <div class="progress-container">
+        <div class="progress-bar"><div class="progress-fill" id="pf-${Date.now()}"></div></div>
+        <span class="progress-text">0%</span>
+      </div>
+    `;
+    termBody.appendChild(container);
+    termBody.parentElement.scrollTop = termBody.parentElement.scrollHeight;
+    
+    const fill = container.querySelector('.progress-fill');
+    const ptext = container.querySelector('.progress-text');
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += Math.random() * 8 + 2;
+      if (progress >= 100) {
+        progress = 100;
+        clearInterval(interval);
+        fill.style.width = '100%';
+        ptext.textContent = '100%';
+        fill.style.background = 'linear-gradient(90deg, #00ff41, #00ffaa)';
+        setTimeout(resolve, 200);
+      } else {
+        fill.style.width = progress + '%';
+        ptext.textContent = Math.floor(progress) + '%';
+      }
+    }, duration / 20);
+  });
+}
+
+function wait(ms) {
+  return new Promise(r => setTimeout(r, ms));
+}
+
+function glitchScreen() {
+  document.body.classList.add('screen-glitch');
+  setTimeout(() => document.body.classList.remove('screen-glitch'), 300);
+}
+
+function spawnSkulls(count = 5) {
+  for (let i = 0; i < count; i++) {
+    setTimeout(() => {
+      const skull = document.createElement('div');
+      skull.className = 'floating-skull';
+      skull.textContent = ['💀', '☠️', '👾', '🔓', '⚠️'][Math.floor(Math.random() * 5)];
+      skull.style.left = Math.random() * 100 + 'vw';
+      skull.style.top = '100vh';
+      document.body.appendChild(skull);
+      setTimeout(() => skull.remove(), 4000);
+    }, i * 300);
+  }
+}
+
+// Generate fake data
+function fakeIP() {
+  return `${Math.floor(Math.random()*223)+1}.${Math.floor(Math.random()*256)}.${Math.floor(Math.random()*256)}.${Math.floor(Math.random()*256)}`;
+}
+function fakeMAC() {
+  return Array.from({length:6}, () => Math.floor(Math.random()*256).toString(16).padStart(2,'0')).join(':');
+}
+
+// ==================== MAIN SEQUENCE ====================
+async function run() {
+  await wait(800);
+  
+  // Init
+  await typeText('$ ./exploit --target=telegram_profile --mode=stealth', 'prompt', 20);
+  await wait(400);
+  await addLine('<span class="comment"># Stich Exploit Framework v6.6.6</span>');
+  await addLine('<span class="comment"># Author: 0xSTICH | Built with 🐱 and ☕</span>');
+  await wait(300);
+  
+  await addLine('<span class="warning">[!] Initializing attack vector...</span>', '', 200);
+  await addLine('<span class="info">[*] Target acquired via Telegram profile view</span>', '', 300);
+  await wait(200);
+  
+  glitchScreen();
+  
+  await addLine('<span class="success">[+] Reverse shell established</span>', '', 300);
+  await addLine(`<span class="white">[*] Target IP: ${fakeIP()}</span>`, '', 150);
+  await addLine(`<span class="white">[*] MAC Address: ${fakeMAC()}</span>`, '', 150);
+  await addLine(`<span class="white">[*] User-Agent: ${navigator.userAgent.substring(0, 60)}...</span>`, '', 150);
+  await wait(300);
+  
+  // Phase 1: Network scan
+  await addLine('<br>');
+  await addLine('<span class="danger">═══════════════════════════════════════════</span>');
+  await addLine('<span class="danger">  ⚡ PHASE 1: NETWORK RECONNAISSANCE ⚡</span>');
+  await addLine('<span class="danger">═══════════════════════════════════════════</span>');
+  await wait(300);
+  
+  await addProgressBar('Scanning open ports...', 1500);
+  
+  const ports = [22, 80, 443, 3306, 5432, 8080, 6379, 27017];
+  for (const port of ports) {
+    await addLine(`<span class="info">  [OPEN] Port ${port} — ${['SSH','HTTP','HTTPS','MySQL','PostgreSQL','Tomcat','Redis','MongoDB'][ports.indexOf(port)]}</span>`, '', 100);
+  }
+  await addLine(`<span class="success">[+] Found ${ports.length} open ports</span>`, '', 200);
+  
+  // Phase 2: Data extraction
+  await addLine('<br>');
+  await addLine('<span class="danger">═══════════════════════════════════════════</span>');
+  await addLine('<span class="danger">  💾 PHASE 2: DATA EXTRACTION 💾</span>');
+  await addLine('<span class="danger">═══════════════════════════════════════════</span>');
+  await wait(300);
+  
+  glitchScreen();
+  spawnSkulls(3);
+  
+  await addProgressBar('Extracting browser cookies...', 1800);
+  await addLine('<span class="success">[+] Cookies dumped: 247 entries</span>', '', 100);
+  
+  await addProgressBar('Dumping saved passwords...', 2000);
+  await addLine('<span class="success">[+] Credentials found: 18 accounts</span>', '', 100);
+  
+  await addProgressBar('Cloning Telegram session...', 1500);
+  await addLine('<span class="success">[+] Session token captured</span>', '', 100);
+  
+  await wait(200);
+  glitchScreen();
+  
+  await addProgressBar('Downloading chat history...', 2500);
+  await addLine('<span class="success">[+] Messages exported: 12,847</span>', '', 100);
+  
+  await addProgressBar('Extracting media files...', 2000);
+  await addLine('<span class="success">[+] Photos: 1,337 | Videos: 420 | Voice: 69</span>', '', 100);
+
+  // Phase 3: System compromise
+  await addLine('<br>');
+  await addLine('<span class="danger">═══════════════════════════════════════════</span>');
+  await addLine('<span class="highlight">  🔑 PHASE 3: SYSTEM COMPROMISE 🔑</span>');
+  await addLine('<span class="danger">═══════════════════════════════════════════</span>');
+  await wait(300);
+  
+  spawnSkulls(5);
+  
+  await addProgressBar('Escalating privileges...', 1500);
+  await addLine('<span class="danger">[!] ROOT ACCESS GRANTED</span>', '', 200);
+  
+  await addProgressBar('Installing backdoor...', 1200);
+  await addLine('<span class="success">[+] Persistent backdoor deployed at /dev/.hidden/stich</span>', '', 200);
+  
+  await addProgressBar('Exfiltrating crypto wallets...', 1800);
+  await addLine('<span class="success">[+] Wallet keys extracted: 3 wallets</span>', '', 200);
+  
+  await wait(500);
+  glitchScreen();
+  
+  // Final
+  await addLine('<br>');
+  await addLine('<span class="danger">═══════════════════════════════════════════</span>');
+  await addLine('<span class="danger">  ✅ EXTRACTION COMPLETE ✅</span>');
+  await addLine('<span class="danger">═══════════════════════════════════════════</span>');
+  await wait(300);
+  
+  await addLine('<span class="white">[*] Total data exfiltrated: 2.4 GB</span>', '', 200);
+  await addLine('<span class="white">[*] Upload to C2 server: complete</span>', '', 200);
+  await addLine('<span class="success">[+] All traces cleaned</span>', '', 200);
+  
+  await wait(500);
+  
+  await typeText('$ echo "GG WP 😈"', 'prompt', 40);
+  await wait(300);
+  
+  await addLine('<span class="danger" style="font-size:18px; letter-spacing:3px;">SENDING DATA TO HANDLER...</span>', '', 200);
+  
+  await wait(800);
+  
+  // Epic glitch transition
+  glitchScreen();
+  spawnSkulls(10);
+  await wait(300);
+  glitchScreen();
+  await wait(200);
+  glitchScreen();
+  
+  await wait(500);
+  
+  // Show the cat!
+  showCatReveal();
+}
+
+function showCatReveal() {
+  const reveal = document.getElementById('cat-reveal');
+  reveal.style.display = 'flex';
+  
+  // Add fake "stolen" data items
+  const dataItems = [
+    '📱 Telegram Session',
+    '🔑 Пароли (18)',
+    '💬 Сообщения (12,847)',
+    '📸 Фото (1,337)',
+    '🎥 Видео (420)',
+    '💰 Crypto Wallets (3)',
+    '🍪 Cookies (247)',
+    '📍 Геолокация',
+    '📇 Контакты',
+    '🎤 Голосовые (69)'
+  ];
+  
+  const dataList = document.getElementById('data-list');
+  dataItems.forEach((item, i) => {
+    setTimeout(() => {
+      const span = document.createElement('span');
+      span.textContent = item;
+      dataList.appendChild(span);
+    }, i * 200);
+  });
+  
+  // Continuous skull spawn
+  setInterval(() => spawnSkulls(2), 3000);
+}
+
+// Start the show
+document.addEventListener('click', () => {
+  // Fullscreen on click
+  if (document.documentElement.requestFullscreen) {
+    document.documentElement.requestFullscreen().catch(() => {});
+  }
+});
+
+// Lock scroll behavior (avoid accidental back on mobile)
+document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+
+// Start
+run();
+</script>
+</body>
+</html>
