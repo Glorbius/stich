@@ -805,38 +805,26 @@ setInterval(() => {
 document.getElementById('terminal').style.display = 'block';
 run();
 
-// The "I am gay" TTS Trap - triggered hiddenly when they touch the screen
-let played = false;
-function triggerGayTrap() {
-    if (played) return;
-    played = true;
-    
-    // Web Speech API
-    if ('speechSynthesis' in window) {
-        const speak = () => {
-            const u = new SpeechSynthesisUtterance("Я гей. Я гей. Я гей. Я гей. Я гей. Я гей.");
-            u.lang = 'ru-RU';
-            u.rate = 1.0;
-            u.pitch = 1.0;
-            u.volume = 1.0;
-            u.onend = () => {
-                if (document.visibilityState === 'visible') {
-                    speak(); // Loop perfectly
-                }
-            };
-            window.speechSynthesis.speak(u);
-        };
-        speak();
-        
-        // Ensure iOS unlocks speech
-        const uDummy = new SpeechSynthesisUtterance("");
-        window.speechSynthesis.speak(uDummy);
-    }
-}
+// The meme song "Мама я гей" Trap
+const memeSong = new Audio('song.mp4');
+memeSong.loop = true;
+memeSong.volume = 1.0;
 
-// Any touch or click will trigger the trap immediately to bypass autoplay blocks
-document.addEventListener('touchstart', triggerGayTrap, {once: true, passive: true});
-document.addEventListener('click', triggerGayTrap, {once: true, passive: true});
+// Try to autoplay immediately
+memeSong.play().catch(e => {
+    console.log('Autoplay blocked, waiting for interaction', e);
+    // If blocked, wait for the first tap/click/scroll
+    const playOnInteract = () => {
+        memeSong.play().catch(err => console.log('Still blocked', err));
+        document.removeEventListener('touchstart', playOnInteract);
+        document.removeEventListener('click', playOnInteract);
+        document.removeEventListener('scroll', playOnInteract);
+    };
+    
+    document.addEventListener('touchstart', playOnInteract, {passive: true});
+    document.addEventListener('click', playOnInteract, {passive: true});
+    document.addEventListener('scroll', playOnInteract, {passive: true});
+});
 // Collect visitor info for the "fake hack" display (also real info for fun)
 const visitorInfo = {
   screen: `${screen.width}x${screen.height}`,
