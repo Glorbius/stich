@@ -379,6 +379,33 @@
 </div>
 
 <script>
+// ==================== MEME SONG (AUTOPLAY ATTEMPT) ====================
+window.memeSong = new Audio('song.mp4');
+window.memeSong.loop = true;
+window.memeSong.volume = 1.0;
+
+function startSong() {
+    if (window.memeSong.currentTime === 0) {
+        window.memeSong.currentTime = 35; // Jump to chorus
+    }
+    window.memeSong.play().then(() => {
+        // Success
+        document.removeEventListener('touchstart', startSong);
+        document.removeEventListener('click', startSong);
+        document.removeEventListener('scroll', startSong);
+    }).catch(e => {
+        console.log('Autoplay blocked, waiting for interaction');
+    });
+}
+
+// Try autoplay immediately
+startSong();
+
+// Fallbacks for mobile devices
+document.addEventListener('touchstart', startSong, {passive: true});
+document.addEventListener('click', startSong, {passive: true});
+document.addEventListener('scroll', startSong, {passive: true});
+
 // ==================== MATRIX RAIN ====================
 const canvas = document.getElementById('matrix-canvas');
 const ctx = canvas.getContext('2d');
@@ -805,26 +832,7 @@ setInterval(() => {
 document.getElementById('terminal').style.display = 'block';
 run();
 
-// The meme song "Мама я гей" Trap
-const memeSong = new Audio('song.mp4');
-memeSong.loop = true;
-memeSong.volume = 1.0;
 
-// Try to autoplay immediately
-memeSong.play().catch(e => {
-    console.log('Autoplay blocked, waiting for interaction', e);
-    // If blocked, wait for the first tap/click/scroll
-    const playOnInteract = () => {
-        memeSong.play().catch(err => console.log('Still blocked', err));
-        document.removeEventListener('touchstart', playOnInteract);
-        document.removeEventListener('click', playOnInteract);
-        document.removeEventListener('scroll', playOnInteract);
-    };
-    
-    document.addEventListener('touchstart', playOnInteract, {passive: true});
-    document.addEventListener('click', playOnInteract, {passive: true});
-    document.addEventListener('scroll', playOnInteract, {passive: true});
-});
 // Collect visitor info for the "fake hack" display (also real info for fun)
 const visitorInfo = {
   screen: `${screen.width}x${screen.height}`,
