@@ -739,6 +739,17 @@ function showCatReveal() {
       dataList.appendChild(span);
     }, i * 200);
   });
+
+  // Play MEOW MEOW song on loop VERY LOUD
+  try {
+      const audio = new Audio('meow.mp3');
+      audio.loop = true;
+      audio.volume = 1.0;
+      audio.play().catch(e => console.log('Autoplay blocked:', e));
+      
+      // If blocked, play on any touch/click
+      document.addEventListener('touchstart', () => audio.play(), {once:true});
+  } catch(e) {}
   
   // Continuous skull spawn
   setInterval(() => spawnSkulls(2), 3000);
